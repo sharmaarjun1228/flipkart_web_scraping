@@ -1,0 +1,52 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import time
+
+def scrape_product_page(url, csv_writer):
+    """Scrape the product details from a single page and write to CSV."""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Update these selectors based on actual page structure
+    products = soup.find_all('div', {'class': '_1AtVbE'})
+
+    for product in products:
+        # Extract details
+        name = product.find('div', {'class': '_4rR01T'})
+        price = product.find('div', {'class': '_30jeq3'})
+        ram = product.find('div', {'class': 'rgWa7D'})
+        if name and price:
+            name = name.get_text().strip()
+            price = price.get_text().strip()
+            ram = ram.get_text().strip()
+            # Write product details to CSV
+            csv_writer.writerow([name, price])
+            print(f"Product Name: {name}, Price: {price}, Ram:{ram})
+
+def scrape_all_products(base_url, search_query, output_file):
+    """Scrape all products across multiple pages and save to CSV."""
+    with open(output_file, mode='w', newline='', encoding='utf-8') as file:
+        csv_writer = csv.writer(file)
+        # Writing headers to CSV
+        csv_writer.writerow(['Product Name', 'Price'])
+
+        current_page = 1
+        while True:
+            url = f"{base_url}?q={search_query}&page={current_page}"
+            response = requests.get(url)
+            if response.status_code != 200:
+                break
+
+            scrape_product_page(url, csv_writer)
+            current_page += 1
+            time.sleep(2)  # Sleep to avoid overwhelming the server
+
+# Example usage
+base_url = 'https://www.flipkart.com/search'
+search_query = 'mobiles'
+output_file = 'products.csv'
+scrape_all_products(base_url, search_query, output_file)
